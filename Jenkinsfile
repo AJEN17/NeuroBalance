@@ -4,7 +4,7 @@ pipeline {
     stages {
         stage('Clone Repository') {
             steps {
-                git branch: 'main', url: 'https://github.com/YOUR_USERNAME/NeuroBalance.git'
+                git branch: 'main', url: 'https://github.com/AJEN17/NeuroBalance.git'
             }
         }
         
