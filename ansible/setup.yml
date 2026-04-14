@@ -1,0 +1,96 @@
+---
+- name: Setup NeuroBalance DevOps Server
+  hosts: all
+  become: yes
+
+  tasks:
+
+    # -------------------- CRITICAL CLEANUP FIRST --------------------
+    - name: Remove old Jenkins repo and keys
+      file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /etc/apt/sources.list.d/jenkins.list
+        - /etc/apt/trusted.gpg.d/jenkins.gpg
+        - /usr/share/keyrings/jenkins-keyring.gpg
+
+    # -------------------- SWAP --------------------
+    - name: Create 4GB Swap File
+      command: fallocate -l 4G /swapfile
+      args:
+        creates: /swapfile
+
+    - name: Set swap file permissions
+      file:
+        path: /swapfile
+        mode: '0600'
+
+    - name: Make swap
+      command: mkswap /swapfile
+      when: ansible_facts['swaptotal_mb'] | int == 0
+
+    - name: Enable swap
+      command: swapon /swapfile
+      when: ansible_facts['swaptotal_mb'] | int == 0
+
+    # -------------------- BASE PACKAGES --------------------
+    - name: Install dependencies
+      apt:
+        name:
+          - openjdk-17-jre
+          - git
+          - curl
+          - ca-certificates
+          - gnupg
+        state: present
+        update_cache: yes
+
+    # -------------------- DOCKER --------------------
+    - name: Install Docker
+      shell: curl -fsSL https://get.docker.com | sh
+      args:
+        creates: /usr/bin/docker
+
+    # -------------------- JENKINS (FINAL FIX) --------------------
+
+    # ADD CORRECT KEY
+    - name: Add Jenkins key (FIXED)
+      shell: apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 7198F4B714ABFC68
+      args:
+        executable: /bin/bash
+
+    # ADD REPO
+    - name: Add Jenkins repo
+      apt_repository:
+        repo: "deb https://pkg.jenkins.io/debian-stable binary/"
+        state: present
+        filename: jenkins
+        update_cache: no
+
+    # UPDATE
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+
+    # INSTALL
+    - name: Install Jenkins
+      apt:
+        name: jenkins
+        state: present
+
+    - name: Ensure Jenkins is running
+      service:
+        name: jenkins
+        state: started
+        enabled: yes
+
+    # -------------------- DOCKER PERMISSIONS --------------------
+    - name: Add users to Docker group
+      user:
+        name: "{{ item }}"
+        groups: docker
+        append: yes
+      loop:
+        - ubuntu
+        - jenkins
