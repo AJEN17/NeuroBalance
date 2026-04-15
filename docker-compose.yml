@@ -17,12 +17,13 @@ services:
         aliases:
           - backend
 
-  prometheus:
+ prometheus:
     image: prom/prometheus:latest
-    volumes:
-      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    container_name: prometheus
     ports:
       - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml   # <--- THIS IS THE MAGIC LINE
     networks:
       - neuro_net
 
